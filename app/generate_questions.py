@@ -24,7 +24,7 @@ Given the following passage from an AIS (Automotive Industry Standard) document,
 
 Difficulty: {difficulty}
 Type: {q_type}
-
+ 
 Rules:
 - Questions must be answerable from the passage alone.
 - Include the answer for each question.

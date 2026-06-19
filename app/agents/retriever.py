@@ -15,7 +15,7 @@ import os
 
 # -----------------------------
 # Gemini Embedding Function (NEW SDK)
-# -----------------------------
+# ----------------------------- 
 class SentenceEmbeddingFunction(EmbeddingFunction):
     def __init__(self):
         self.model = SentenceTransformer("all-MiniLM-L6-v2")

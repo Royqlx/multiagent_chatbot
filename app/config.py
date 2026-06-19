@@ -23,4 +23,4 @@ CHUNK_OVERLAP: int = 50  # word overlap between chunks
 TOP_K: int = 5
 
 # ── ChromaDB collection name ───────────────────────────────────────────────────
-COLLECTION_NAME: str = "ais_documents"
+COLLECTION_NAME: str = "ais_documents" 

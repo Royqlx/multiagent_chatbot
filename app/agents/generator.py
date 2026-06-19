@@ -70,4 +70,4 @@ Context:
             contents=contents,
         )
 
-        return response.text if response.text else "No response generated."
+        return response.text if response.text else "No response generated." 

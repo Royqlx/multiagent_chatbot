@@ -100,4 +100,4 @@ def ingest() -> None:
 
     print(f"Done. {len(all_chunks)} chunks stored in ChromaDB.")
 if __name__ == "__main__":
-    ingest()
+    ingest() 

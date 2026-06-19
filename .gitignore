@@ -7,4 +7,4 @@ data/
 app/eval/questions.json
 app/eval/results.csv
 app/eval/k_selection.csv
-chroma/
+chroma/ 

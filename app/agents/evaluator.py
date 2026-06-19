@@ -84,4 +84,4 @@ class EvaluatorAgent:
         cols = ["faithfulness", "answer_relevancy", "context_precision", "context_recall"]
         print(results_df[cols].mean())
 
-        return results_df
+        return results_df 

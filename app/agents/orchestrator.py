@@ -43,4 +43,4 @@ class OrchestratorAgent:
 
     def reset_memory(self) -> None:
         """Clear short-term memory to start a fresh conversation."""
-        self.history = []
+        self.history = [] 

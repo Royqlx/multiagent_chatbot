@@ -12,7 +12,7 @@ import os
 # Allow running from project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "app"))
 
-from agents.orchestrator import OrchestratorAgent
+from app.agents.orchestrator import OrchestratorAgent
 
 
 def main() -> None:

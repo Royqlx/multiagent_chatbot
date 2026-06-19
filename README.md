@@ -41,7 +41,7 @@ Get your free API key at **https://aistudio.google.com/app/apikey**
 ## Project structure
 
 ```
-gemini_chatbot/
+multiagent_chatbot/
 ├── main.py                   # CLI entry point
 ├── requirements.txt
 ├── .env.example
@@ -50,7 +50,6 @@ gemini_chatbot/
 ├── chroma_db/                # auto-created by ingest.py
 └── app/
     ├── config.py             # all settings in one place
-    ├── gemini_client.py      # shared genai.configure() singleton
     ├── ingest.py             # PDF → ChromaDB pipeline
     ├── generate_questions.py # synthetic Q&A generation
     ├── find_best_k.py        # Precision/Recall/MRR sweep over K values
