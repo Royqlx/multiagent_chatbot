@@ -22,8 +22,6 @@ from datasets import Dataset
 from ragas import evaluate
 from ragas.metrics import faithfulness, answer_relevancy, context_precision, context_recall
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-
-import gemini_client  # noqa: F401
 from agents.orchestrator import OrchestratorAgent
 from config import TOP_K, LLM_MODEL, EMBEDDING_MODEL, GOOGLE_API_KEY
 

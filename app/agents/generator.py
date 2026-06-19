@@ -1,63 +1,73 @@
 """
 GeneratorAgent
 ──────────────
-Objective : Generate a grounded answer using retrieved context + conversation history.
-Input     : query string, list of chunk dicts, conversation history list
-Output    : answer string
-
-Uses Gemini 2.5 Flash (free tier via google-genai).
-Conversation history is formatted as alternating user/model turns.
+Generates answers using Gemini 2.5 Flash based on retrieved context.
 """
 
-import google.generativeai as genai
-import gemini_client  # noqa: F401 — configures genai on import
-from config import LLM_MODEL
+from google import genai
 
-SYSTEM_PROMPT = (
-    "You are an expert assistant for Automotive Industry Standards (AIS) documents "
-    "published by ARAI (Automotive Research Association of India).\n\n"
-    "Answer questions strictly based on the provided context. "
-    "If the answer is not in the context, say: "
-    "\"I could not find this information in the provided documents.\" "
-    "Do not hallucinate or add information outside the context."
-)
+from config import GOOGLE_API_KEY, LLM_MODEL
 
 
 class GeneratorAgent:
     """Generates answers using Gemini 2.5 Flash with multi-turn history support."""
 
     def __init__(self):
-        self._model = genai.GenerativeModel(
-            model_name=LLM_MODEL,
-            system_instruction=SYSTEM_PROMPT,
-        )
+        self.client = genai.Client(api_key=GOOGLE_API_KEY)
 
-    def generate(self, query: str, chunks: list[dict], history: list[dict] | None = None) -> str:
+    def generate(
+        self,
+        query: str,
+        chunks: list[dict],
+        history: list[dict] | None = None,
+    ) -> str:
         """
         Parameters
         ----------
         query   : current user question
         chunks  : retrieved chunks from RetrieverAgent
-        history : list of {role, content} dicts from previous turns
-                  (role must be "user" or "model")
+        history : list of {role, content} dicts
+                  role must be 'user' or 'model'
         """
+
         history = history or []
 
-        # Build context block from retrieved chunks
         context = "\n\n---\n\n".join(
-            f"[Source: {c['source']}]\n{c['text']}" for c in chunks
+            f"[Source: {chunk['source']}]\n{chunk['text']}"
+            for chunk in chunks
         )
 
-        # Convert stored history to Gemini's Content format
-        gemini_history = []
+        system_prompt = f"""
+You are an expert assistant answering questions from AIS documents.
+
+Instructions:
+- Use ONLY the provided context.
+- If the answer is not found in the context, clearly state that.
+- Cite the source document when possible.
+- Be concise and accurate.
+
+Context:
+{context}
+"""
+
+        contents = []
+
         for turn in history:
-            gemini_history.append({
-                "role": turn["role"],          # "user" or "model"
-                "parts": [turn["content"]],
+            contents.append({
+                "role": turn["role"],
+                "parts": [{"text": turn["content"]}],
             })
 
-        chat = self._model.start_chat(history=gemini_history)
+        contents.append({
+            "role": "user",
+            "parts": [{
+                "text": f"{system_prompt}\n\nQuestion:\n{query}"
+            }],
+        })
 
-        user_message = f"Context:\n{context}\n\nQuestion: {query}"
-        response = chat.send_message(user_message)
-        return response.text
+        response = self.client.models.generate_content(
+            model=LLM_MODEL,
+            contents=contents,
+        )
+
+        return response.text if response.text else "No response generated."

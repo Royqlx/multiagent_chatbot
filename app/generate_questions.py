@@ -13,9 +13,7 @@ import json
 import random
 import os
 import chromadb
-import google.generativeai as genai
-
-import gemini_client  # noqa: F401
+from google import genai
 from agents.retriever import GeminiEmbeddingFunction
 from config import CHROMA_PATH, LLM_MODEL, COLLECTION_NAME
 

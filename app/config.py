@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
@@ -9,10 +10,9 @@ GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
 # ── Models ─────────────────────────────────────────────────────────────────────
 # Free-tier Gemini models (no billing required)
 LLM_MODEL: str = "gemini-2.5-flash"           # generation & question-gen
-EMBEDDING_MODEL: str = "models/text-embedding-004"  # 768-dim, free
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-CHROMA_PATH: str = "./chroma_db"
+CHROMA_PATH = Path(__file__).resolve().parent.parent / "chroma"
 DATA_PATH: str = "./data"
 
 # ── Chunking ───────────────────────────────────────────────────────────────────
