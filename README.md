@@ -1,64 +1,97 @@
-# Multi-Agent RAG Chatbot — Gemini 2.5 Flash Edition
+# Multi-Agent RAG Chatbot — AIS Documents
 
-A multi-agent Retrieval-Augmented Generation (RAG) chatbot for AIS (Automotive Industry Standards) documents, powered entirely by **free Google Gemini APIs** — no OpenAI account or billing required.
+A multi-agent Retrieval-Augmented Generation (RAG) chatbot that answers questions about Automotive Industry Standards (AIS) documents published by ARAI (Automotive Research Association of India). The system retrieves relevant passages from a local vector database and generates grounded answers using Google's Gemini 2.5 Flash model.
+
+---
+
+## What it does
+
+You give it a folder of AIS PDF documents. It chunks them, embeds them locally, and stores them in a vector database. When you ask a question, it retrieves the most relevant chunks and asks Gemini to answer strictly from that context, so answers are grounded in the actual documents instead of the model's general knowledge.
 
 ---
 
 ## Architecture
 
+The system is split into four agents, each with one job:
+
 ```
 User Query
     │
     ▼
-OrchestratorAgent          ← coordinates pipeline + manages memory
-    ├── RetrieverAgent     ← Gemini text-embedding-004 → ChromaDB
-    ├── GeneratorAgent     ← Gemini 2.5 Flash (chat with history)
-    └── EvaluatorAgent     ← Ragas metrics via LangChain-Google wrapper
+OrchestratorAgent              ← coordinates pipeline + manages memory
+    ├── RetrieverAgent         ← all-MiniLM-L6-v2 (local) → ChromaDB
+    └── GeneratorAgent         ← Gemini 2.5 Flash (google.genai.Client)
+
+EvaluatorAgent                 ← Ragas metrics via LangChain Gemini wrapper
 ```
 
 ### Agent responsibilities
 
-| Agent | Input | Output |
-|---|---|---|
-| **OrchestratorAgent** | user query | answer dict + sources |
-| **RetrieverAgent** | query string | top-K chunks from ChromaDB |
-| **GeneratorAgent** | query + chunks + history | grounded answer string |
-| **EvaluatorAgent** | questions JSON path | Ragas metrics DataFrame + CSV |
+| Agent | Input | Output | Role |
+|---|---|---|---|
+| **OrchestratorAgent** | user query | answer dict + retrieved chunks | Coordinates the pipeline, holds short-term conversation memory |
+| **RetrieverAgent** | query string | top-K relevant chunks from ChromaDB | Finds the passages relevant to the question |
+| **GeneratorAgent** | query + chunks + history | grounded answer string | Calls Gemini 2.5 Flash to produce the answer |
+| **EvaluatorAgent** | questions JSON path | Ragas metrics DataFrame + CSV | Scores chatbot quality on faithfulness, relevance, precision, recall |
+
+### Memory model
+
+- **Short-term**: a list of `{role, content}` turns held in `OrchestratorAgent.history`. Cleared with `reset_memory()` or the `reset` command. Not persisted to disk.
+- **Long-term**: the ChromaDB collection on disk. Built once by `ingest.py` and persists across runs.
 
 ---
 
-## Free-tier models used
+## Models and tools used
 
-| Purpose | Model |
-|---|---|
-| LLM generation | `gemini-2.5-flash` |
-| Embeddings | `models/text-embedding-004` (768-dim) |
+| Purpose | Model / library | Where it runs | Cost |
+|---|---|---|---|
+| Answer generation | `gemini-2.5-flash` | Google's Gemini API (cloud) | Free tier |
+| Embeddings | `all-MiniLM-L6-v2` (`sentence-transformers`) | Locally, on your machine | Free, no API calls |
+| Vector storage | ChromaDB (`PersistentClient`) | Locally, on disk | Free |
+| PDF parsing | PyMuPDF (`fitz`) | Locally | Free |
+| Evaluation metrics | Ragas, via `langchain-google-genai` wrappers around Gemini | Cloud (LLM calls) + local (scoring) | Free tier |
 
-Get your free API key at **https://aistudio.google.com/app/apikey**
+Because embeddings run locally, **ingestion and chatting only need a Gemini API key for the generation step** — retrieval works without any API calls at all.
+
+Get a free key at **https://aistudio.google.com/app/apikey**
 
 ---
+
+## Multi-Agent RAG Architecture
+
+<p align="center">
+  <img src="assets/multiagent_rag_architecture.png" width="900">
+</p>
 
 ## Project structure
 
 ```
 multiagent_chatbot/
-├── main.py                   # CLI entry point
-├── requirements.txt
-├── .env.example
-├── .gitignore
-├── data/                     # ← drop your AIS PDFs here
-├── chroma_db/                # auto-created by ingest.py
+├── main.py                    # CLI entry point
+├── requirements.in            # top-level dependencies
+├── requirements.txt           # pinned, pip-compile generated
+├── assets/
+│   └── multiagent_rag_architecture.png   # system architecture diagram
 └── app/
-    ├── config.py             # all settings in one place
-    ├── ingest.py             # PDF → ChromaDB pipeline
-    ├── generate_questions.py # synthetic Q&A generation
-    ├── find_best_k.py        # Precision/Recall/MRR sweep over K values
+    ├── config.py               # all settings in one place
+    ├── ingest.py               # PDF → chunks → ChromaDB pipeline
+    ├── generate_questions.py   # synthetic Q&A generation for evaluation
+    ├── find_best_k.py          # Precision/Recall/MRR sweep over K values
     └── agents/
         ├── __init__.py
-        ├── orchestrator.py   # pipeline coordinator + short-term memory
-        ├── retriever.py      # ChromaDB + Gemini embeddings
-        ├── generator.py      # Gemini 2.5 Flash answer generation
-        └── evaluator.py      # Ragas evaluation (faithfulness, relevance, precision, recall)
+        ├── orchestrator.py     # pipeline coordinator + short-term memory
+        ├── retriever.py        # ChromaDB + local sentence-transformer embeddings
+        ├── generator.py        # Gemini 2.5 Flash answer generation
+        └── evaluator.py        # Ragas evaluation
+```
+
+Created at runtime, not shipped in the repo:
+
+```
+├── data/        # put your AIS PDFs here before running ingest.py
+├── chroma/      # auto-created by ingest.py
+├── app/eval/    # auto-created by generate_questions.py / find_best_k.py
+└── .env         # holds GOOGLE_API_KEY
 ```
 
 ---
@@ -66,26 +99,28 @@ multiagent_chatbot/
 ## Setup
 
 ```bash
-# 1. Clone / unzip project
-cd gemini_chatbot
+# 1. Unzip / clone the project
+cd multiagent_chatbot
 
-# 2. Create virtual environment
+# 2. Create a virtual environment
 python -m venv venv
-source venv/bin/activate       # Windows: venv\Scripts\activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
 
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Set your API key
-cp .env.example .env
-# Edit .env and paste your GOOGLE_API_KEY
+# 4. Set your Gemini API key
+echo "GOOGLE_API_KEY=your_key_here" > .env
 
-# 5. Add PDFs to the data/ folder
-#    Download AIS docs from: https://www.araiindia.com/downloads/ais-downloads
+# 5. Add PDFs
+mkdir -p data
+# Download AIS documents from: https://www.araiindia.com/downloads/ais-downloads
+# and place them in data/
 
-# 6. Ingest documents (run once, or again after adding new PDFs)
+# 6. Ingest documents — builds the vector store
 cd app
 python ingest.py
+# First run downloads the all-MiniLM-L6-v2 model (~80MB) — no API key needed for this step
 
 # 7. Start chatting
 cd ..
@@ -94,21 +129,23 @@ python main.py
 
 ---
 
-## Evaluation workflow
+## Usage
 
-```bash
-cd app
-
-# Generate 50 synthetic Q&A pairs from your documents
-python generate_questions.py     # → eval/questions.json
-
-# Find the optimal K for retrieval
-python find_best_k.py            # → eval/k_selection.csv
-
-# Run full Ragas evaluation
-python -c "from agents.evaluator import EvaluatorAgent; EvaluatorAgent().run_evaluation()"
-# → eval/results.csv
 ```
+============================================================
+  Multi-Agent RAG Chatbot — AIS Documents  (Gemini 2.5 Flash)
+  Commands: 'quit' to exit | 'reset' to clear chat history
+============================================================
+
+You: What is the scope of AIS-004?
+Assistant: ...
+
+[Sources: AIS-004.pdf]
+```
+
+- Type a question and press Enter to chat.
+- Type `reset` to clear conversation memory and start a fresh session.
+- Type `quit` to exit.
 
 ---
 
@@ -116,21 +153,26 @@ python -c "from agents.evaluator import EvaluatorAgent; EvaluatorAgent().run_eva
 
 | Setting | Default | Description |
 |---|---|---|
-| `LLM_MODEL` | `gemini-2.5-flash` | Gemini model for generation |
-| `EMBEDDING_MODEL` | `models/text-embedding-004` | Gemini embedding model |
+| `LLM_MODEL` | `gemini-2.5-flash` | Gemini model used for generation |
+| `CHROMA_PATH` | `<project_root>/chroma` | Resolved with `pathlib`, relative to `config.py` |
+| `DATA_PATH` | `./data` | Folder ingest.py reads PDFs from |
 | `CHUNK_SIZE` | `500` | Words per chunk |
-| `CHUNK_OVERLAP` | `50` | Word overlap between chunks |
-| `TOP_K` | `5` | Retrieved chunks per query |
+| `CHUNK_OVERLAP` | `50` | Word overlap between consecutive chunks |
+| `TOP_K` | `5` | Number of chunks retrieved per query |
+| `COLLECTION_NAME` | `ais_documents` | ChromaDB collection name |
+
+The embedding model name (`all-MiniLM-L6-v2`) is hardcoded inside the `SentenceEmbeddingFunction` class in `retriever.py` and `ingest.py`, rather than configured centrally.
 
 ---
 
-## Key differences from the OpenAI version
+## Blockers / known issues
 
-| | OpenAI version | This version |
-|---|---|---|
-| LLM | `gpt-4o` / `gpt-4o-mini` | `gemini-2.5-flash` (free) |
-| Embeddings | `text-embedding-3-small` | `text-embedding-004` (free) |
-| Client | `openai.OpenAI` | `google-generativeai` |
-| History role | `"assistant"` | `"model"` (Gemini convention) |
-| Ragas LLM | OpenAI default | LangChain `ChatGoogleGenerativeAI` |
-| Cost | Paid API | Free tier |
+These are the current limitations of the project as it stands.
+
+1. **Evaluation pipeline does not run — dependency conflicts.** Attempting to run the Ragas-based evaluation (`EvaluatorAgent`) or `find_best_k.py` fails due to dependency resolution issues in the installed environment. As a result, the chatbot has only been verified for direct chat use, **end-to-end evaluation (faithfulness, relevancy, precision, recall) has not been successfully run.**
+
+2. **`generate_questions.py` is broken.** It still imports `GeminiEmbeddingFunction` from `agents/retriever.py`, but that class was renamed to `SentenceEmbeddingFunction` when embeddings moved to `sentence-transformers`. It also calls `genai.GenerativeModel(...)`, which belongs to the older `google.generativeai` package — the project now uses the newer `google.genai` package, where generation goes through `genai.Client(...).models.generate_content(...)` instead. This script will not run until both are updated to match the pattern used in `generator.py`.
+
+3. **No automated test coverage.** There are no unit or integration tests, so changes to any agent currently rely on manual verification through the CLI.
+
+4. **Current Status:** The complete chatbot pipeline is now functional end-to-end. Document ingestion (`ingest.py`), vector storage with ChromaDB, retrieval using SentenceTransformers, and answer generation using Gemini 2.5 Flash have been tested and are working through `main.py`. The evaluation utilities (`generate_questions.py`, `find_best_k.py`, and `EvaluatorAgent`) are included in the codebase and may require additional validation or updates to align with the latest architecture.
