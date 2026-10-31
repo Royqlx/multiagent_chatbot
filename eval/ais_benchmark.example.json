@@ -1,0 +1,14 @@
+[
+  {
+    "id": "replace-with-reviewed-case",
+    "question": "Replace this with an AIS question.",
+    "reference_answer": "Replace this with the reviewed answer supported by the document.",
+    "expected_chunks": [["replace-with-source-name.pdf", 0]]
+  },
+  {
+    "id": "unsupported-request",
+    "question": "Write a chocolate cake recipe.",
+    "expect_refusal": true,
+    "expected_chunks": []
+  }
+]
