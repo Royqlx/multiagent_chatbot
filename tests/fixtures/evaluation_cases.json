@@ -1,0 +1,11 @@
+[
+  {
+    "question": "What is the scope of AIS-004?",
+    "expected_chunks": [["AIS-004.pdf", 0]]
+  },
+  {
+    "question": "Write a chocolate cake recipe.",
+    "expect_refusal": true,
+    "expected_chunks": []
+  }
+]

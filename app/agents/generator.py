@@ -6,7 +6,7 @@ Generates answers using Gemini 2.5 Flash based on retrieved context.
 
 from google import genai
 
-from config import GOOGLE_API_KEY, LLM_MODEL
+from app.config import GOOGLE_API_KEY, LLM_MODEL
 
 
 class GeneratorAgent:
@@ -70,4 +70,4 @@ Context:
             contents=contents,
         )
 
-        return response.text if response.text else "No response generated." 
+        return response.text if response.text else "No response generated."

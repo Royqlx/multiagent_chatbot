@@ -9,7 +9,7 @@ Output    : list of dicts — {text, source, score}
 import chromadb
 from chromadb import EmbeddingFunction, Documents, Embeddings
 from sentence_transformers import SentenceTransformer
-from config import CHROMA_PATH, TOP_K, COLLECTION_NAME
+from app.config import CHROMA_PATH, TOP_K, COLLECTION_NAME
 import os
 
 
