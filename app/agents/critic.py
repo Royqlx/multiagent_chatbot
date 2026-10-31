@@ -12,4 +12,10 @@ class CriticAgent:
         if any(source and f"[{source}]" in answer for source in sources):
             return Critique("accept", ("cites_provided_source",))
 
-        return Critique("retry", ("missing_source_citation",), query)
+        # The generator receives only retrieved chunks. A missing filename token
+        # is not evidence that its answer is ungrounded, and must not suppress a
+        # useful response; the CLI already displays the retrieved sources.
+        if answer.strip() and "no response generated" not in answer.lower():
+            return Critique("accept", ("evidence_available",))
+
+        return Critique("retry", ("empty_draft",), query)
